@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <array>
 #include <type_traits>
 #include <complex>
 #include <fstream>
@@ -15,6 +16,9 @@ namespace algebra {
 
 // Enumerator that indicates the storage order of the matrix
 enum class StorageOrder{row_major, column_major};
+
+// Enumerator that indicates norm typr
+enum class NormType{One, Infinity, Frobenius};
 
 //Defining a functor as comparison operator for std::array<int,2>
 template< StorageOrder order>
@@ -431,30 +435,67 @@ class matrix{
         file.close();
     }
 
-    // Print the matrix
-    void print() const{
-        if (compressed){
-            throw std::runtime_error("Matrix is compressed, Please uncompress first"); // Uncompress the matrix before printing
-        }
+    // method to calculate the norm of the matrix based on the given NormType
+    template<NormType norm_type>
+    T norm() const{
 
-        std::cout<< "[ "<<std::endl;
+        T norm = T();
 
-        for (std::size_t i = 0; i < rows; ++i){
+        if constexpr (norm_type == NormType::one){
+            // loop over the columns
             for (std::size_t j = 0; j < cols; ++j){
-                auto it = data.find({i,j});
-                if (it != data.end()){
-                    std::cout<< it->second<<" ";
+                // loop over the rows
+                T col_sum = T();
+                for (std::size_t i = 0; i < rows; ++i){
+                    col_sum += std::abs(this->operator()(i,j));  
                 }
-                else{
-                    std::cout<< T();  // Print default value for missing values
+                norm = std::max(norm, col_sum);  // Update the norm with the maximum column sum
+            }
+            return norm;
+        }
+        if constexpr (norm_type == NormType::infinity){
+            // loop over rows
+            for (std::size_t i = 0; i < rows; ++i){
+                T row_sum = T();
+                // loop over the columns
+                for (std::size_t j = 0; j < cols; ++j){
+                    row_sum += std::abs(this->operator()(i,j));  
+                }
+                norm = std::max(norm, row_sum);  // Update the norm with the maximum row sum
+            }
+            return norm;
+        }
+        if constexpr (norm_type == NormType::Frobenius){
+            T sum = T();
+            // loop over all elements
+            for (std::size_t i = 0; i < rows; ++i){
+                for (std::size_t j = 0; j < cols; ++j){
+                    sum += std::norm(this->operator()(i,j));  // Sum of squares
                 }
             }
-            std::cout<< std::endl;
+            return std::sqrt(sum);  // Return the square root of the sum of squares
         }
-        std::cout<< " ]" << std::endl;
+    }
+
+    // Print the matrix
+    void print() const{
+        std::cout << "Matrix: [ " << std::endl;
+        // initialize a vector representing current row being printed
+        std::vector<T> curr_row(cols, T());
+        // loop over all rows
+        for (std::size_t i = 0; i < rows; ++i){
+            curr_row = this->extract_row(i);  // Extract the current row
+            // loop over all columns of the current row
+            for (std::size_t j = 0; j < cols; ++j){
+                std::cout << curr_row[j] << " ";  // Print the current element
+            }
+            std::cout << std::endl;  // Print a new line after each row
+        }
+        std::cout << "]" << std::endl;
     }
 };
 
+// Implementing the multiplication operator for matrix and std::vector
 template<typename T1, StorageOrder order, typename T2>
 requires is_arithmetic_or_complex<T1>::value && is_arithmetic_or_complex<T2>::value  // limitation to arithmetic or complex types
 auto operator*(const matrix<T1, order>& Mat, const std::vector<T2>& vec){
@@ -479,7 +520,6 @@ auto operator*(const matrix<T1, order>& Mat, const std::vector<T2>& vec){
             result[row] += value * vec[col];  
         }
         return result;
-       
     }
 
     // matrix is compressed
@@ -511,6 +551,23 @@ auto operator*(const matrix<T1, order>& Mat, const std::vector<T2>& vec){
         }
         return result;
     }
+}
+
+// Overloading the multiplication operator to handle 1 column matrices as std::vector
+template<typename T1, StorageOrder order, typename T2>
+requires is_arithmetic_or_complex<T1>::value && is_arithmetic_or_complex<T2>::value  // limitation to arithmetic or complex types
+auto operator*(const matrix<T1, order>& Mat, const matrix<T2, order>& vec_mat){
+
+    // check if the matrix is a column vector
+    if (vec_mat.get_cols() != 1){
+        throw std::invalid_argument("Matrix is not a column vector");
+    }
+
+    // initialize the result vector using extract column method
+    std::vector<T2> vec = vec_mat.extract_column(0);
+
+    // Call the multiplication operator for matrix and std::vector
+    return Mat * vec;
 }
 
 };
