@@ -77,25 +77,91 @@ class matrix{
     // Extracting a row from the matrix
     std::vector<T> extract_row(unsigned int r) const{
         std::vector<T> row(cols,T()); // Initialize the row with default values
-        for (unsigned int i = 0; i < cols; ++i){
-            auto it = data.find({r,i});
-            if (it != data.end()){
-                row[i] = it->second; // If the value exists, assign it to the row
+
+        // Matrix not compressed
+        if (!compressed){
+            for (unsigned int i = 0; i < cols; ++i){
+                auto it = data.find({r,i});
+                if (it != data.end()){
+                    row[i] = it->second; // If the value exists, assign it to the row
+                }
+            }
+            return row;
+        }
+        else{
+            // Matrix compressed
+            if constexpr (order == StorageOrder::row_major){
+                unsigned int row_start = outer_start[r];  // first index of the row in values vector
+                unsigned int row_end = outer_start[r+1];  // last index of the row in values vector
+                for (unsigned int idx = row_start; idx < row_end; ++idx){
+                    unsigned int col = inner_indices[idx];  // column index
+                    T value = values[idx];  // value in the row
+                    row[col] = value;  // Assign the value to the row in the right place
+                }
+                return row;
+            }
+            else
+            {
+                // loop over all columns
+                for (unsigned int c = 0; c < cols; ++c){
+                    unsigned int col_start = outer_start[c];  // first index of the column in values vector
+                    unsigned int col_end = outer_start[c + 1];  // last index of the column in values vector
+                    // loop over all non-zero rows in the current column
+                    for (unsigned int idx = col_start; idx < col_end; ++idx){
+                        unsigned int row_idx = inner_indices[idx];  // row index
+                        if (row_idx == r){
+                            T value = values[idx];  //value in the column
+                            row[c] = value;  // Assign the value to the row in the right place
+                        }
+                    }
+                }
+                return row;
             }
         }
-        return row;
     }
+
 
       // Extracting a column from the matrix
       std::vector<T> extract_column(unsigned int c) const{
         std::vector<T> column(rows,T()); // Initialize the column with default values
-        for (unsigned int i = 0; i < rows; ++i){
-            auto it = data.find({i,c});
-            if (it != data.end()){
-                column[i] = it->second; // If the value exists, assign it to the row
+        // Matrix not compressed
+        if (!compressed){
+            for (unsigned int i = 0; i < rows; ++i){
+                auto it = data.find({i,c});
+                if (it != data.end()){
+                    column[i] = it->second; // If the value exists, assign it to the row
+                }
+            }
+            return column;
+        }
+        else{
+            if constexpr (order == StorageOrder::row_major){
+                // loop over all rows
+                for (unsigned int r = 0; r < rows; ++r){
+                    unsigned int row_start = outer_start[r];  // first index of the row in values vector
+                    unsigned int row_end = outer_start[r+1];  // last index of the row in values vector
+                    // loop over all non-zero columns in the current row
+                    for (unsigned int idx = row_start; idx < row_end; ++idx){
+                        unsigned int col_idx = inner_indices[idx];  // column index
+                        if (col_idx == c){
+                            T value = values[idx];  // value in the row
+                            column[r] = value;  // Assign the value to the column in the right place
+                        }
+                    }
+                }
+                return column;
+            }
+            else{
+                unsigned int col_start = outer_start[c];  // first index of the column in values vector
+                unsigned int col_end = outer_start[c+1];  // last index of the column in values vector
+                for (unsigned int idx = col_start; idx < col_end; ++idx){
+                    unsigned int row = inner_indices[idx];  // row index
+                    T value = values[idx];  // value in the column
+                    column[row] = value;  // Assign the value to the column in the right place
+                }
+                return column;
             }
         }
-        return column;
     }
 
     // Compressing the matrix
@@ -119,7 +185,6 @@ class matrix{
 
 
         if constexpr (order == StorageOrder::row_major){
-            
             
             for (auto& [key, value] : data){
                 outer_start[key[0] + 1]++;        // count all entries for each row
@@ -328,11 +393,19 @@ std::vector<T> operator*(const matrix<T, order>& Mat, const std::vector<T>& vec)
 
     std::vector<T> result(Mat.get_rows(), T()); // Initialize the result vector with default values
 
-    // Check if the matrix is not compressed
+    //  matrix is not compressed
     if (!Mat.is_compressed()){
-        Mat.compress(); // Compress the matrix before multiplication
+        // Loop over the non-zero values in the matrix
+        for (auto& [key, value]: Mat.data){
+            unsigned int row = key[0];
+            unsigned int col = key[1];
+            result[row] += value * vec[col];  
+        }
+        return result;
+       
     }
 
+    // matrix is compressed
     if constexpr (order == StorageOrder::row_major){
         // Row-major order multiplication (Classic)
         for (unsigned int i = 0; i < Mat.get_rows(); ++i){
@@ -345,6 +418,7 @@ std::vector<T> operator*(const matrix<T, order>& Mat, const std::vector<T>& vec)
                 result[i] += value * vec[col];  // Multiply and accumulate the result
             }
         }
+        return result;
     }
     else{
         // Column-major order multiplication
@@ -358,8 +432,8 @@ std::vector<T> operator*(const matrix<T, order>& Mat, const std::vector<T>& vec)
                 result[row] += value * vec[j];  // Multiply and accumulate the result
             }
         }
+        return result;
     }
-    return result;
 }
 
 };
