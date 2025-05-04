@@ -23,7 +23,7 @@ enum class NormType{One, Infinity, Frobenius};
 //Defining a functor as comparison operator for std::array<int,2>
 template< StorageOrder order>
 struct array_comparison{
-    bool operator()(const std::array<int,2> &a, const std::array<int,2> &b) const {
+    bool operator()(const std::array<std::size_t,2> &a, const std::array<std::size_t,2> &b) const {
         if constexpr (order == StorageOrder::row_major){
             return (a[0] < b[0]) || (a[0] == b[0] && a[1] < b[1]);
         }
@@ -44,9 +44,9 @@ struct is_arithmetic_or_complex<std::complex<T>>: std::is_arithmetic<T> {};
 template<typename T, StorageOrder order>
 class matrix{
     private:
-    std::size_t rows;  // Number of rows
-    std::size_t cols;  // Number of columns
-    std::map<std::array<int, 2>, T, array_comparison<order>> data;  // Matrix indices and values sorted using comparison functor
+    std::size_t rows = 0;  // Number of rows
+    std::size_t cols = 0;  // Number of columns
+    std::map<std::array<std::size_t, 2>, T, array_comparison<order>> data;  // Matrix indices and values sorted using comparison functor
     bool compressed = false;  // Indicate if the matrix is compressed
 
     // Compression Vectors
@@ -62,6 +62,9 @@ class matrix{
     //Constructor
     matrix(std::size_t r, std::size_t c):
      rows(r), cols(c) {}
+
+     // Default constructor
+    matrix() = default;
 
      // Default copy constructor
     matrix(const matrix& rhs) = default;
@@ -103,6 +106,11 @@ class matrix{
     // Get number of columns
     std::size_t get_cols() const {
         return cols;
+    }
+
+    // Get the number of non-zero elements
+    std::size_t get_nnz() const {
+        return data.size();
     }
 
 
@@ -390,7 +398,8 @@ class matrix{
     }
 
     // Declaration friend operator for multiplication of matrix with a std::vector
-    friend std::vector<T> operator*(const matrix<T, order>& Mat, const std::vector<T>& vec);
+    template<typename T1, StorageOrder ord, typename T2>
+    friend std::vector<T> operator*(const matrix<T1, ord>& Mat, const std::vector<T2>& vec);
     
 
     // method to read matrix from matrix market
@@ -441,7 +450,7 @@ class matrix{
 
         T norm = T();
 
-        if constexpr (norm_type == NormType::one){
+        if constexpr (norm_type == NormType::One){
             // loop over the columns
             for (std::size_t j = 0; j < cols; ++j){
                 // loop over the rows
@@ -453,7 +462,7 @@ class matrix{
             }
             return norm;
         }
-        if constexpr (norm_type == NormType::infinity){
+        if constexpr (norm_type == NormType::Infinity){
             // loop over rows
             for (std::size_t i = 0; i < rows; ++i){
                 T row_sum = T();
@@ -479,7 +488,7 @@ class matrix{
 
     // Print the matrix
     void print() const{
-        std::cout << "Matrix: [ " << std::endl;
+        std::cout << "[ " << std::endl;
         // initialize a vector representing current row being printed
         std::vector<T> curr_row(cols, T());
         // loop over all rows
@@ -496,9 +505,9 @@ class matrix{
 };
 
 // Implementing the multiplication operator for matrix and std::vector
-template<typename T1, StorageOrder order, typename T2>
+template<typename T1, StorageOrder ord, typename T2>
 requires is_arithmetic_or_complex<T1>::value && is_arithmetic_or_complex<T2>::value  // limitation to arithmetic or complex types
-auto operator*(const matrix<T1, order>& Mat, const std::vector<T2>& vec){
+auto operator*(const matrix<T1, ord>& Mat, const std::vector<T2>& vec){
 
     // Matrix and vector types must be compatible
     static_assert(std::is_convertible_v<T1, T2> || std::is_convertible_v<T2, T1>, "Matrix and vector types must be compatible");
@@ -523,7 +532,7 @@ auto operator*(const matrix<T1, order>& Mat, const std::vector<T2>& vec){
     }
 
     // matrix is compressed
-    if constexpr (order == StorageOrder::row_major){
+    if constexpr (ord == StorageOrder::row_major){
         // Row-major order multiplication (Classic)
         for (std::size_t i = 0; i < Mat.get_rows(); ++i){
             std::size_t row_start = Mat.outer_start[i];  // first index of the current row in values vector
@@ -554,9 +563,9 @@ auto operator*(const matrix<T1, order>& Mat, const std::vector<T2>& vec){
 }
 
 // Overloading the multiplication operator to handle 1 column matrices as std::vector
-template<typename T1, StorageOrder order, typename T2>
+template<typename T1, StorageOrder ord, typename T2>
 requires is_arithmetic_or_complex<T1>::value && is_arithmetic_or_complex<T2>::value  // limitation to arithmetic or complex types
-auto operator*(const matrix<T1, order>& Mat, const matrix<T2, order>& vec_mat){
+auto operator*(const matrix<T1, ord>& Mat, const matrix<T2, ord>& vec_mat){
 
     // check if the matrix is a column vector
     if (vec_mat.get_cols() != 1){
