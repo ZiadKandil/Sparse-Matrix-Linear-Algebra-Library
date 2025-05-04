@@ -21,6 +21,7 @@ A high-performance C++ template library designed for sparse matrix operations, s
 - **Matrix Operations**
   - Element insertion/access
   - Matrix-vector multiplication
+  - Matrix-column matrix multiplication
   - Norm calculations (1-norm, ∞-norm, Frobenius)
   - Compression/uncompression
 
