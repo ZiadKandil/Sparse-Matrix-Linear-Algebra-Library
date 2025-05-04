@@ -1,4 +1,5 @@
 #include "matrix.hpp"
+#include <chrono>
 
 using namespace algebra;
 
@@ -39,8 +40,27 @@ int main(){
     // Print matrix dimensions
     std::cout << "Matrix 3 dimensions: " << mat3.get_rows() << " x " << mat3.get_cols() << std::endl;
     std::cout<<"Number of non-zero elements in matrix 3: " << mat3.get_nnz() << std::endl;
+
+    // Creating a vector of ones of a suitable size for multiplication
+    std::vector<double> vec(mat3.get_cols(), 1.0);
+
+    // Measure time for multiplication for uncompressed matrix
+    auto start1 = std::chrono::high_resolution_clock::now();
+    auto result1 = mat3 * vec;  // Multiplication
+    auto end1 = std::chrono::high_resolution_clock::now();
+    auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
+
+    // compress the matrix
+    mat3.compress();
+
+    // Measure time for multiplication for compressed matrix
+    auto start2 = std::chrono::high_resolution_clock::now();
+    auto result2 = mat3 * vec;  // Multiplication
+    auto end2 = std::chrono::high_resolution_clock::now();
+    auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start2);
+
+    std::cout << "Time taken for multiplication with uncompressed matrix: " << duration1.count() << " µs" << std::endl;
+    std::cout << "Time taken for multiplication with compressed matrix: " << duration2.count() << " µs" << std::endl;
     
-
-
     return 0;
 }

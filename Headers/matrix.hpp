@@ -399,7 +399,8 @@ class matrix{
 
     // Declaration friend operator for multiplication of matrix with a std::vector
     template<typename T1, StorageOrder ord, typename T2>
-    friend std::vector<T> operator*(const matrix<T1, ord>& Mat, const std::vector<T2>& vec);
+    requires is_arithmetic_or_complex<T1>::value && is_arithmetic_or_complex<T2>::value  // limitation to arithmetic or complex types
+    friend auto operator*(const matrix<T1, ord>& Mat, const std::vector<T2>& vec);
     
 
     // method to read matrix from matrix market
@@ -475,14 +476,26 @@ class matrix{
             return norm;
         }
         if constexpr (norm_type == NormType::Frobenius){
-            T sum = T();
-            // loop over all elements
-            for (std::size_t i = 0; i < rows; ++i){
-                for (std::size_t j = 0; j < cols; ++j){
-                    sum += std::norm(this->operator()(i,j));  // Sum of squares
+            // If matrix is compressed
+            if (compressed){
+                T sum = T();
+                // loop over all non-zero values
+                for (std::size_t i = 0; i < values.size(); ++i){
+                    sum += std::norm(values[i]);  // Sum of squares
                 }
+                return std::sqrt(sum);  // Return the square root of the sum of squares
             }
-            return std::sqrt(sum);  // Return the square root of the sum of squares
+            // If matrix is uncompressed
+            else{
+                T sum = T();
+                // loop over all elements
+                for (std::size_t i = 0; i < rows; ++i){
+                    for (std::size_t j = 0; j < cols; ++j){
+                        sum += std::norm(this->operator()(i,j));  // Sum of squares
+                    }
+                }
+                return std::sqrt(sum);  // Return the square root of the sum of squares
+            }
         }
     }
 
