@@ -218,4 +218,4 @@ double norm = cmat.norm<NormType::Frobenius>();
 
 ## License
 
-MIT License - See included LICENSE file for details.
+CC0 1.0 Universal (Creative Commons) - See included LICENSE file for details.
