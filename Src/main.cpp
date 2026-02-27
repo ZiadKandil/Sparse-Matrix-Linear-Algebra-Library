@@ -14,12 +14,16 @@ int main(){
     mat1.insert(2,2,7); // testing insert on row major matrix
     mat1.compress();
     mat1.insert(0,0,7);  // testing insert on row major matrix after compression
+    mat1.uncompress();
+    mat1.insert(0,0,7);
     mat1(3,3) = 7;  // testing non-const call operator on row major matrix after compression
 
     mat2(1,1) = 8;  // testing non-const call operator on column major matrix
     mat2.insert(2,2,8); // testing insert on column major matrix
     mat2.compress();
     mat2.insert(0,0,8);  // testing insert on column major matrix after compression
+    mat2.uncompress();
+    mat2.insert(0,0,8);
     mat2(3,3) = 8;  // testing non-const call operator on column major matrix after compression
 
     //Printing matrices data

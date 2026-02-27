@@ -87,7 +87,8 @@ class matrix{
         }
         // check if the matrix is compressed
         if (compressed){
-            this->uncompress();  // Uncompress the matrix before inserting
+            std::cout << "Matrix is compressed, cannot insert new elements." << std::endl;
+            return;
         }
         if (i >= rows){
             rows = i + 1;
@@ -367,7 +368,7 @@ class matrix{
     // call operator non-const version
     T& operator() (std::size_t i, std::size_t j){
         if (compressed){
-            this->uncompress(); // Uncompress the matrix before accessing
+            throw std::runtime_error("Cannot modify compressed matrix. Call uncompress() first.");
         }
         if (i >= rows){
             rows = i + 1;
@@ -375,7 +376,7 @@ class matrix{
         if (j >= cols){
             cols = j + 1;
         }
-        return data[{i,j}];  // Return the value at the given indices
+        return data[{i,j}];
     }
 
     // resize the matrix
